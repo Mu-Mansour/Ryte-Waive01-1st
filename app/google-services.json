@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "148182924609",
+    "project_id": "ryte-305306",
+    "storage_bucket": "ryte-305306.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:148182924609:android:fb1d87cbba6c8352c075c0",
+        "android_client_info": {
+          "package_name": "com.example.ryte"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "148182924609-4p4ot1e5uhksjbf534pivooqfdcq4v0m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.ryte",
+            "certificate_hash": "e0422503711302808fb846bfa61d8bb3860f4240"
+          }
+        },
+        {
+          "client_id": "148182924609-pu8jh73h3tbajijr3do1lb2moeh33r64.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCu5M-e2gihZYHueVKcPRZ9UsvMaVB9DEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "148182924609-pu8jh73h3tbajijr3do1lb2moeh33r64.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

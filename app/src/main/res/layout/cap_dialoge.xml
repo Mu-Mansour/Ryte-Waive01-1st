@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@color/purple_500">
+
+    <ImageView
+        android:id="@+id/capImageFromDB"
+        android:layout_width="85dp"
+        android:layout_height="85dp"
+        android:layout_marginStart="16dp"
+        app:layout_constraintBottom_toBottomOf="@+id/dialogueCapPhone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/dialogueCapName"
+        tools:srcCompat="@tools:sample/avatars"
+        android:contentDescription="TODO" />
+
+    <TextView
+        android:id="@+id/dialogueCapName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="16dp"
+        android:text="Name"
+        app:layout_constraintStart_toEndOf="@+id/capImageFromDB"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/dialogueCapNameDB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@+id/dialogueCapName"
+        app:layout_constraintTop_toTopOf="@+id/dialogueCapName" />
+
+    <TextView
+        android:id="@+id/dialogueCapLicence"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Licence No"
+        app:layout_constraintStart_toStartOf="@+id/dialogueCapName"
+        app:layout_constraintTop_toBottomOf="@+id/dialogueCapName" />
+
+    <TextView
+        android:id="@+id/dialogueCapLicenceDB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@+id/dialogueCapLicence"
+        app:layout_constraintTop_toTopOf="@+id/dialogueCapLicence" />
+
+    <TextView
+        android:id="@+id/dialogueCapCar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Car "
+        app:layout_constraintStart_toStartOf="@+id/dialogueCapLicence"
+        app:layout_constraintTop_toBottomOf="@+id/dialogueCapLicence" />
+
+    <TextView
+        android:id="@+id/dialogueCapcarModelDB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintStart_toEndOf="@+id/dialogueCapCar"
+        app:layout_constraintTop_toTopOf="@+id/dialogueCapCar" />
+
+    <TextView
+        android:id="@+id/dialogueCapPhone"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Phone no"
+        app:layout_constraintStart_toStartOf="@+id/dialogueCapCar"
+        app:layout_constraintTop_toBottomOf="@+id/dialogueCapCar" />
+
+    <TextView
+        android:id="@+id/dialogueCapPhoneDB"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        app:layout_constraintBottom_toBottomOf="@+id/dialogueCapPhone"
+        app:layout_constraintStart_toEndOf="@+id/dialogueCapPhone"
+        app:layout_constraintTop_toTopOf="@+id/dialogueCapPhone" />
+</androidx.constraintlayout.widget.ConstraintLayout>
