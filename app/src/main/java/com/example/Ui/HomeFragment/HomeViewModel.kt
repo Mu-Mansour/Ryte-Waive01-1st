@@ -1,6 +1,7 @@
 package com.example.Ui.HomeFragment
 
 import android.annotation.SuppressLint
+import android.location.Location
 import android.os.Build
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -10,8 +11,12 @@ import com.example.ryte.Logic.PendingRideModule
 import com.example.ryte.Network.NotificationData
 import com.example.ryte.Network.PushNotification
 import com.example.ryte.Network.RetrofitInstance
+import com.example.ryte.R
 import com.firebase.geofire.GeoFire
 import com.firebase.geofire.GeoLocation
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
@@ -34,6 +39,9 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
     //for both
     val isLocationEnabled: MutableLiveData<Boolean> = MutableLiveData()
+    val theLiveDataOfCapsLocations =MutableLiveData<MutableList<MarkerOptions>>()
+    var rideID:String?= null
+
 
 
     //for cst
@@ -47,14 +55,20 @@ class HomeViewModel @Inject constructor() :ViewModel() {
     var theCaptainAnswer: MutableLiveData<String> = MutableLiveData()
     var theDistance = 1.0
     var geoRefrence: GeoLocation? = null
-
     var theRadiouslLimit = 5.0
     var theDriverisfound = false
     var isFound = false
+    var cancelIsShown= false
 
 
     //for cap
     val theCapStatus: MutableLiveData<String> = MutableLiveData()
+    val theCapNewRide:MutableLiveData<Boolean> = MutableLiveData()
+    var cstID:String?= null
+    var theCstIDrawn=false
+    var theCstLocationWithinRide:MutableLiveData<Location> = MutableLiveData()
+    val theCstLatLng:MutableLiveData<LatLng> = MutableLiveData()
+
 
 
     // funs for cst
@@ -73,7 +87,28 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
                 })
     }
+    fun getMyCurrentRideId()
+    {
+        viewModelScope.launch {
+            FirebaseDatabase.getInstance().reference
+                    .child("ConfirmedForCst")
+                    .child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(object :ValueEventListener{
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            if (snapshot.exists())
+                            {
+                                muCurrentRideId.value=snapshot.value.toString()+FirebaseAuth.getInstance().currentUser!!.uid
+                                FirebaseDatabase.getInstance().reference
+                                        .child("ConfirmedForCst")
+                                        .child(FirebaseAuth.getInstance().currentUser!!.uid).removeEventListener(this)
+                            }
+                        }
 
+                        override fun onCancelled(error: DatabaseError) {
+                        }
+
+                    })
+        }
+    }
     fun getMyCurrentCaptain() {
         viewModelScope.launch(Dispatchers.IO) {
             FirebaseDatabase.getInstance().reference.child("ConfirmedForCst").child(FirebaseAuth.getInstance().currentUser!!.uid)
@@ -136,7 +171,7 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
     fun makeMeRyte() {
         viewModelScope.launch(Dispatchers.IO) {
-            FirebaseDatabase.getInstance().reference.child("Customers").child("Status").setValue("Ryte").addOnSuccessListener {
+            FirebaseDatabase.getInstance().reference.child("Customers").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("Ryte").addOnSuccessListener {
                 FirebaseDatabase.getInstance().reference.child("ConfirmedForCst")
                         .child(FirebaseAuth.getInstance().currentUser!!.uid).removeValue().addOnSuccessListener {
                             resetBeforeSearching()
@@ -197,7 +232,7 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
     fun makeMeWithCaptain() {
         viewModelScope.launch(Dispatchers.IO) {
-            FirebaseDatabase.getInstance().reference.child("Customers").child("Status").setValue("WithCap")
+            FirebaseDatabase.getInstance().reference.child("Customers").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("WithCap")
         }
     }
 
@@ -224,6 +259,7 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
     }
 
+
     fun createRefrenceForMyPendingStatus() = viewModelScope.launch(Dispatchers.IO) {
         FirebaseDatabase.getInstance().reference.child("CustomersPending").child(FirebaseAuth.getInstance().currentUser!!.uid)
                 .child("Cap is Coming").child(theDriver!!).setValue("notyet").addOnSuccessListener {
@@ -232,25 +268,29 @@ class HomeViewModel @Inject constructor() :ViewModel() {
                 }
     }
         fun checkIfCapAccepted() {
-            viewModelScope.launch(Dispatchers.IO) {
-
-
-                FirebaseDatabase.getInstance().reference.child("CustomersPending").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(theDriver!!)
-                        .addValueEventListener(object : ValueEventListener {
-                            override fun onDataChange(snapshot: DataSnapshot) {
-                                if (snapshot.exists()) {
-                                    theCaptainAnswer.value = snapshot.value.toString()
-                                    FirebaseDatabase.getInstance().reference.child("CustomersPending")
-                                            .child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(theDriver!!).removeEventListener(this)
+            theDriver?.let {
+                viewModelScope.launch(Dispatchers.IO) {
+                    FirebaseDatabase.getInstance().reference.child("CustomersPending").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(theDriver!!)
+                            .addValueEventListener(object : ValueEventListener {
+                                override fun onDataChange(snapshot: DataSnapshot) {
+                                    if (snapshot.exists()) {
+                                        theCaptainAnswer.value = snapshot.value.toString()
+                                        theDriver?.let {
+                                            FirebaseDatabase.getInstance().reference.child("CustomersPending")
+                                                    .child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(it).removeEventListener(this)
+                                        }
+                                        /*FirebaseDatabase.getInstance().reference.child("CustomersPending")
+                                            .child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(theDriver!!).removeEventListener(this)*/
+                                    }
                                 }
-                            }
 
-                            override fun onCancelled(error: DatabaseError) {
-                            }
+                                override fun onCancelled(error: DatabaseError) {
+                                }
 
-                        })
+                            })
 
-        }
+                }
+            }
     }
     fun updateAfterCaptainAcceptance() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -317,11 +357,197 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
         fun makeTheCapStatusOff(capId: String) {
             FirebaseDatabase.getInstance().reference.child("Captains").child(capId).child("Status").setValue("OFF").addOnSuccessListener {
+                FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(capId).removeValue()
 
             }
         }
 
+    fun updateMyStatusAfterArriving()
+    {
+        var cstidforCstNoti:String?=null
+        viewModelScope.launch(Dispatchers.IO) {
+            FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(object :ValueEventListener{
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    if (snapshot.exists())
+                    {
+                        cstidforCstNoti=snapshot.value.toString()
+                        FirebaseDatabase.getInstance().reference.child("Rides")
+                                .child("Pending").child(FirebaseAuth.getInstance().currentUser!!.uid+snapshot.value.toString()).child("CaptainArrived").setValue("yes").addOnSuccessListener {
+                                    cstidforCstNoti?.let {
+                                        viewModelScope.launch {
+                                            sentDatNotificationtoThatCst(it)
+                                            FirebaseDatabase.getInstance().reference.child("Captains")
+                                                    .child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("Arrived")
+
+                                        }
+                                    }
+
+                        }
+
+                    }
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                }
+
+            })
+
+        }
+    }
+    suspend fun sentDatNotificationtoThatCst(CstId: String) = CoroutineScope(Dispatchers.IO).launch {
+        FirebaseDatabase.getInstance().reference.child("Users Tokens").child("Customers Tokens").child(CstId).addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists()) {
+                    val theCapToBeReached = snapshot.value.toString()
+                    val notification = PushNotification(NotificationData("Ryter is Here ", "Please Reach Me"), theCapToBeReached)
+                    viewModelScope.launch(Dispatchers.IO) {
+                        val response = RetrofitInstance.api.postNotification(notification)
+                        if (response.isSuccessful) {
+                            // more logic
+                        }
+                    }
+                }
+
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+        })
 
     }
+        fun updateMyLocationAndStatusAsCaptain(myCity:String, myLocation:Location) {
+            val theGeoLocation = GeoFire(FirebaseDatabase.getInstance().reference.child("Online Captains").child(myCity))
+            theGeoLocation.setLocation(FirebaseAuth.getInstance().currentUser!!.uid, GeoLocation(myLocation.latitude, myLocation.longitude))
+            FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid).child("zone").setValue(myCity).addOnSuccessListener {
+                FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid).child("OnCity").setValue(myCity)
+                FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("ON")
+            }
+        }
+
+
+    fun updateMyLocation(current:String,location: Location)
+    {
+        FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid)
+                .child("zone").addValueEventListener(object :ValueEventListener{
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if (snapshot.exists())
+                        {
+                            if (current==snapshot.value.toString())
+                            {
+                                val theGeoLocation2 = GeoFire( FirebaseDatabase.getInstance().reference.child("Online Captains").child(current))
+                                theGeoLocation2.setLocation(FirebaseAuth.getInstance().currentUser!!.uid, GeoLocation(location.latitude, location.longitude))
+                                FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid)
+                                        .child("zone").removeEventListener(this)
+                            }
+                            else
+                            {
+                                val theGeoLocation = GeoFire(FirebaseDatabase.getInstance().reference.child("Online Captains").child(snapshot.value.toString()))
+                                theGeoLocation.removeLocation(FirebaseAuth.getInstance().currentUser!!.uid)
+                                FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid).child("zone").setValue(current)
+                            }
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                    }
+
+                })
+    }
+
+
+    fun getToCustomerToReach()=viewModelScope.launch(Dispatchers.IO){
+        FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(
+                object :ValueEventListener{
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if (snapshot.exists())
+                        {
+                            cstID=snapshot.value.toString()
+                            rideID=FirebaseAuth.getInstance().currentUser!!.uid+cstID
+                            FirebaseDatabase.getInstance().reference.child("CustomersPending")
+                                    .child(snapshot.value.toString()).child("Pending").addValueEventListener(object :ValueEventListener{
+                                        override fun onDataChange(snapshot: DataSnapshot) {
+                                            if (snapshot.exists())
+                                            {
+                                                var theLat = snapshot.child("l").child("0").value.toString().toDouble()
+                                                var theLong = snapshot.child("l").child("1").value.toString().toDouble()
+                                                theCstLocationWithinRide.value=Location("").also {
+                                                    it.latitude=theLat
+                                                    it.longitude=theLong
+                                                }
+                                                theCstLatLng.value= LatLng(theLat,theLong)
+                                            }
+                                        }
+                                        override fun onCancelled(error: DatabaseError) {
+                                        }
+
+                                    })
+
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                    }
+
+                }
+        )
+    }
+
+
+    fun makeTheAroundCaptains(city:String)
+    {
+        val thelocations= mutableListOf<MarkerOptions>()
+        FirebaseDatabase.getInstance().reference.child("Online Captains").child(city).addValueEventListener(object :ValueEventListener{
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.hasChildren()) {
+                    var maxCapstoBeShown = 0
+                    thelocations.clear()
+                    for (i in snapshot.children) {
+                        if (i.key == FirebaseAuth.getInstance().currentUser!!.uid) {
+
+                            var theLat = i.child("l").child("0").value.toString().toDouble()
+                            var theLong = i.child("l").child("1").value.toString().toDouble()
+                            var theMarker = MarkerOptions()
+                                    .position(LatLng(theLat, theLong))
+                                    .title("Me")
+                                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.finalmewheel))
+                            thelocations.add(theMarker)
+                        } else {
+
+
+                            var theLat = i.child("l").child("0").value.toString().toDouble()
+                            var theLong = i.child("l").child("1").value.toString().toDouble()
+                            var thelocation = LatLng(theLat, theLong)
+                            var theMarker = MarkerOptions()
+                                    .position(thelocation)
+                                    .title("Captain")
+                                    .icon(BitmapDescriptorFactory.fromResource(R.drawable.lastcar))
+                            thelocations.add(theMarker)
+
+                            if (maxCapstoBeShown > 20) {
+                                break
+                            }
+                            maxCapstoBeShown++
+
+                        }
+                    }
+                    theLiveDataOfCapsLocations.value = thelocations
+
+
+                } else {
+                    thelocations.clear()
+                    theLiveDataOfCapsLocations.value = thelocations
+                }
+                }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+
+        }
+)
+    }
+
+
+
+}
 
 

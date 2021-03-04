@@ -2,6 +2,7 @@ package com.example.Ui.CancelCurrentRide
 
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.widget.Button
@@ -10,6 +11,7 @@ import androidx.appcompat.app.AppCompatDialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.example.ryte.Logic.PendingRideModule
 import com.example.ryte.R
+import com.example.ryte.Services.CalculatingWaitingTimeService
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -53,6 +55,9 @@ class CancelDialouge(private val ride:PendingRideModule): AppCompatDialogFragmen
                 withContext(lifecycleScope.coroutineContext) {
                     cancelAndCreateRefrences(ride)
                     updateTheFees(ride)
+                    withContext(Dispatchers.Main){
+                        requireActivity().stopService(Intent(requireContext(),CalculatingWaitingTimeService::class.java))
+                    }
                 }
 
             }
@@ -95,7 +100,7 @@ class CancelDialouge(private val ride:PendingRideModule): AppCompatDialogFragmen
             .updateChildren(theNewCompletedRideDetails).addOnSuccessListener {
                 FirebaseDatabase.getInstance().reference.child("MyRides").child(ride.Customer!!).child(ride.Uid!!).updateChildren(theNewCompletedRideDetails).addOnSuccessListener {
                     FirebaseDatabase.getInstance().reference.child("MyRides").child(ride.Captain!!).child(ride.Uid!!).updateChildren(theNewCompletedRideDetails).addOnSuccessListener {
-                        FirebaseDatabase.getInstance().reference.child("Captins").child(ride.Captain!!).child("Status").setValue("OFF").addOnSuccessListener {
+                        FirebaseDatabase.getInstance().reference.child("Captains").child(ride.Captain!!).child("Status").setValue("OFF").addOnSuccessListener {
                             FirebaseDatabase.getInstance().reference.child("Customers").child(ride.Customer!!).child("Status").setValue("Ryte").addOnSuccessListener {
                                 FirebaseDatabase.getInstance().reference.child("Rides").child("Pending").child(ride.Captain!!+ride.Customer).removeValue().addOnSuccessListener {
                                     FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(ride.Captain!!).removeValue().addOnSuccessListener {

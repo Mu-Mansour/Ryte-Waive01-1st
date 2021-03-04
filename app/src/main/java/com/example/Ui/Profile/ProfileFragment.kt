@@ -1,6 +1,7 @@
 package com.example.Ui.Profile
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -66,7 +67,7 @@ private val theUserType:ProfileFragmentArgs by navArgs()
                             " Status:${it.Status}    "
 
                     goToHomeFragment.setOnClickListener { _ ->
-                        if (it.Credit.toString().toInt() >= 5) {
+                        if (it.Credit.toString().toDouble()>= 5.0) {
                             findNavController().navigate(ProfileFragmentDirections.actionProfileFragment2ToHomeFragment("Cst", it.Image))
 
                         } else {
@@ -80,6 +81,25 @@ private val theUserType:ProfileFragmentArgs by navArgs()
         }
         else
         {
+
+            theViewModel. listenToMyRides()
+            theViewModel. theCapNewRide.observe(viewLifecycleOwner, {
+                if (it) {
+
+                    val theDialog =  AlertDialog.Builder(requireContext())
+                    theDialog .setMessage("You  Have a New Ride")
+                            .setTitle("New Ride ").setPositiveButton("Accept") { _, _ ->
+                                lifecycleScope.launch {
+                                        theViewModel.takeTheRide()
+                                }
+
+                            }.setNegativeButton("Decline") { _, _ ->
+
+
+                            }.show()
+                    theViewModel. theCapNewRide.value=false
+                }
+            })
             theViewModel.captainDetails.observe(viewLifecycleOwner,{
                 it?.let {
                     userImage.load(it.image){

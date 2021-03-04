@@ -16,10 +16,12 @@ import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import coil.load
 import coil.size.Scale
@@ -40,11 +42,15 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.fragment_home.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.*
 
 @AndroidEntryPoint
@@ -55,6 +61,9 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     private val theViewModel:HomeViewModel by viewModels()
     lateinit var fusedLocation: FusedLocationProviderClient
     lateinit var theProgress: ProgressDialog
+    lateinit var theProgress2: ProgressDialog
+
+
 
     //caps
 
@@ -67,6 +76,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
        interval= 3000
    }
     private var theMarke: Marker? = null
+    private var theMarke2: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,12 +92,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         {
             lifecycleScope.launch {
                 theViewModel.listenToCapStatus()
+                theViewModel.getToCustomerToReach()
             }
         }
     }
 
 
-    @SuppressLint("UseCompatLoadingForColorStateLists")
+    @SuppressLint("UseCompatLoadingForColorStateLists", "MissingPermission")
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         mapView2.onCreate(savedInstanceState)
@@ -102,27 +113,36 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             transformations(CircleCropTransformation())
             scale(Scale.FILL)
         }
+        userProfile.setOnClickListener {
+
+                theViewModel.theCstLatLng.removeObservers(this)
+                findNavController().navigate(HomeFragmentDirections.actionHomeFragmentToProfileFragment2(arguments.UserType))
+
+
+
+        }
          theProgress= ProgressDialog(context)
-        theProgress.setMessage("Updating your Location..")
-        theProgress.setCancelable(false)
-        theProgress.setCanceledOnTouchOutside(false)
-        theProgress.show()
+        theProgress2= ProgressDialog(context)
+        theProgress2.setMessage("Updating your Location..")
+        theProgress2.setCancelable(false)
+        theProgress2.setCanceledOnTouchOutside(false)
+        theProgress2.show()
 
         if (arguments.UserType=="Cst")
         {
             theViewModel.theCstStatus.observe(viewLifecycleOwner, { cst ->
-                cst?.let {
+                cst?.let { it ->
                     when (it) {
                         "Ryte" -> {
-
+                            cancelTheRide.isVisible = false
                             doJobBtn.apply {
-                                backgroundTintList = resources.getColorStateList(R.color.white)
+                                //  backgroundTintList = resources.getColorStateList(R.color.white)
                                 setImageResource(R.drawable.ic_baseline_maps_ugc_24)
-                               setOnClickListener {
-                                   lifecycleScope.launch {
-                                       findCloseCapsForCst()
-                                   }
-                               }
+                                setOnClickListener {
+                                    lifecycleScope.launch {
+                                        findCloseCapsForCst()
+                                    }
+                                }
                             }
 
                         }
@@ -130,7 +150,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
                             doJobBtn.apply {
                                 visibility = View.VISIBLE
-                                backgroundTintList = resources.getColorStateList(R.color.white)
+                                //          backgroundTintList = resources.getColorStateList(R.color.white)
                                 setImageResource(R.drawable.ic_baseline_person_24)
                                 setOnClickListener {
                                     lifecycleScope.launch {
@@ -142,19 +162,39 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                             cancelTheRide.apply {
                                 visibility = View.VISIBLE
                                 setOnClickListener {
-                                    cancelTheRide(parentFragmentManager)
+                                    theViewModel.getMyCurrentRideId()
+                                    theViewModel.muCurrentRideId.observe(viewLifecycleOwner, { id1 ->
+                                        id1?.let {
+                                          //  Toast.makeText(requireContext(), id1, Toast.LENGTH_SHORT).show()
+                                            if (!theViewModel.cancelIsShown)
+                                            {
+                                                cancelTheRide(parentFragmentManager)
+                                            }
+
+                                       //     theViewModel.muCurrentRideId.value=null
+                                        } /*?:Toast.makeText(requireContext(), "Please Confirm Your Captain Details First ", Toast.LENGTH_SHORT).show()*/
+                                    })
+
+
+
                                 }
                             }
 
                         }
                         "Riding" -> {
+                            cancelTheRide.isVisible = false
                             doJobBtn.apply {
                                 visibility = View.VISIBLE
-                                backgroundTintList = resources.getColorStateList(R.color.white)
                                 setImageResource(R.drawable.ic_baseline_check_24)
                                 setOnClickListener {
                                     lifecycleScope.launch {
                                         theViewModel.makeMeWithCaptain()
+                                        val theIntentForTracking = Intent(context, CalculatingDistanceService::class.java).apply {
+                                            action = Utility.startRide
+                                        }
+                                        val thewaitingIntent = Intent(requireContext(), CalculatingWaitingTimeService::class.java)
+                                        requireActivity().stopService(thewaitingIntent)
+                                        ContextCompat.startForegroundService(context, theIntentForTracking)
                                     }
 
                                 }
@@ -163,9 +203,9 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
                         }
                         "WithCap" -> {
+                            cancelTheRide.isVisible = false
                             doJobBtn.apply {
                                 visibility = View.VISIBLE
-                                backgroundTintList = resources.getColorStateList(R.color.white)
                                 setImageResource(R.drawable.ic_baseline_location_on_24)
                                 setOnClickListener {
                                     lifecycleScope.launch {
@@ -198,24 +238,121 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         }
         else
         {
+
+            theViewModel.theCapNewRide.observe(viewLifecycleOwner, {
+                it?.let {
+
+                    if (it) {
+                        theViewModel.theCapNewRide.value=false
+                        val theDialog =  AlertDialog.Builder(requireContext())
+                        theDialog .setMessage("You  Have a New Ride")
+                                .setTitle("New Ride ").setPositiveButton("Accept") { _, _ ->
+                                    lifecycleScope.launch {
+
+                                    }
+
+                                }.setNegativeButton("Decline") { _, _ ->
+
+
+                                }.show()
+
+
+                    } else {
+                        //for the dialouge
+
+                    }
+                }
+            })
             theViewModel.theCapStatus.observe(viewLifecycleOwner,{cap->
                 cap?.let {
                     when(it)
                     {
-                        "Busy"->{
+                        "Busy" -> {
+                            doJobBtn.setImageResource(R.drawable.ic_baseline_location_on_24)
+                            theViewModel.getToCustomerToReach()
+                            theViewModel.theCstLocationWithinRide.observe(viewLifecycleOwner, { location ->
+                                location?.let {
+                                    val theMarker = MarkerOptions()
+                                            .position(LatLng(location.latitude, location.longitude))
+                                            .title("Captain")
+                                            .icon(BitmapDescriptorFactory.fromResource(R.drawable.sycee))
+                                    theMap.addMarker(theMarker)
+                                    fusedLocation.lastLocation.addOnSuccessListener { theCurrentLocation ->
 
+                                        doJobBtn.setOnClickListener {
+                                            if (theCurrentLocation.distanceTo(location) <= 50.0) {
+                                                Toast.makeText(requireContext(), "You Reached Your Destination", Toast.LENGTH_SHORT).show()
+                                                theViewModel.updateMyStatusAfterArriving()
+
+                                            } else {
+                                                Toast.makeText(requireContext(), "Please Reach Your Destination ", Toast.LENGTH_SHORT).show()
+
+                                            }
+                                        }
+
+                                    }
+
+                                }
+                            })
+                            doJobBtn.apply {
+                                setImageResource(R.drawable.ic_baseline_location_on_24)
+                                visibility = View.VISIBLE
+                            }
                         }
                         "ON"->{
+                            doJobBtn.visibility=View.GONE
+                            statusBTN.apply {
+                                visibility=View.VISIBLE
+                               background=resources.getDrawable(R.drawable.radious4)
+                                text="ON"
+                                setOnClickListener {
+                                    fusedLocation.lastLocation.addOnSuccessListener {
+                                        val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
+                                        val adreess = theGeoCoder.getFromLocation(it.latitude, it.longitude, 1)
+                                        theViewModel.theCity = adreess[0].locality.toString()
+                                        theViewModel.makeTheCapStatusOff(FirebaseAuth.getInstance().currentUser!!.uid)
+                                        theViewModel.makeTheCapOfflilne(FirebaseAuth.getInstance().currentUser!!.uid)
+                                    }
+                                }
+                            }
+                            RefreshMyLocation.apply {
+                                visibility=View.VISIBLE
+                                setOnClickListener {
+                                    refreshMyLocation()
+                                }
+                            }
 
                         }
                         "Arrived"->{
+
 
                         }
                         "Riding"->{
 
                         }
                         "OFF"->{
+                            theViewModel.makeTheCapStatusOff(FirebaseAuth.getInstance().currentUser!!.uid)
+                            doJobBtn.isVisible=false
+                            RefreshMyLocation.visibility=View.GONE
+                            statusBTN.apply {
+                            visibility=View.VISIBLE
+                                background=resources.getDrawable(R.drawable.radious5)
+                            text="OFF"
+                            setOnClickListener {
+                                fusedLocation.lastLocation.addOnSuccessListener {
+                                    val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
+                                    val adreess = theGeoCoder.getFromLocation(it.latitude, it.longitude, 1)
+                                    theViewModel.theCity = adreess[0].locality.toString()
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        makeTheCaptainOnline()
+                                    }
 
+                                }
+
+
+                            }
+
+                        }
                         }
                     }
                 }
@@ -238,8 +375,9 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                 .title("Captain")
                                 .rotation(p0.lastLocation.bearing)
                                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.carforcaptainmoving)))
-                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 12f))
-                        theProgress.dismiss()
+                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 18f))
+                        theProgress2.dismiss()
+
 
                     }
 
@@ -252,7 +390,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                 .title("Customer")
                                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.customer)))
                         theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 18f))
-                        theProgress.dismiss()
+                        theProgress2.dismiss()
+
 
 
                     }
@@ -281,15 +420,20 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     }
 
     private fun cancelTheRide(parentFragmentManager: FragmentManager) {
-        theViewModel.muCurrentRideId.observe(viewLifecycleOwner,{
+        theViewModel.cancelIsShown=false
+             theViewModel.muCurrentRideId.observe(viewLifecycleOwner, {
             it?.let {
                 theViewModel.getTheCurrentRideDetails(it)
-                theViewModel.muCurrentRideDetails.observe(viewLifecycleOwner,{ride->
-                    ride?.let { theRide->
-                     val theCancelDialogue=CancelDialouge(theRide)
-                        theCancelDialogue.show(parentFragmentManager,null)
+                theViewModel.muCurrentRideDetails.observe(viewLifecycleOwner, { ride ->
+                    ride?.let { theRide ->
+                        val theCancelDialogue = CancelDialouge(theRide)
+                        theCancelDialogue.show(parentFragmentManager, null)
+                        theViewModel.cancelIsShown=true
+                        theViewModel.muCurrentRideDetails.value=null
+                        theViewModel.muCurrentRideId.value=null
                     }
                 })
+
             }
         })
 
@@ -297,15 +441,24 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     private fun showMyCaptainDetails(parentFragmentManager: FragmentManager) {
 
-        theViewModel.getMyCurrentCaptain()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            theViewModel.getMyCurrentCaptain()
+        }
         theViewModel.myCaptainId.observe(viewLifecycleOwner,{it->
             it?.let {
-                theViewModel.getMyCaptainDetails(it)
-                theViewModel.myCaptainDetails.observe(viewLifecycleOwner,{cap->
-                    cap?.let {theCap->
-                         CurrentCaptainDetails(theCap,it).show(parentFragmentManager,null)
-                    }
-                })
+                lifecycleScope.launch {
+                    theViewModel.getMyCaptainDetails(it)
+                    //theViewModel.muCurrentRideId.value=it+FirebaseAuth.getInstance().currentUser!!.uid
+                    theViewModel.myCaptainDetails.observe(viewLifecycleOwner,{cap->
+                        cap?.let {theCap->
+                            CurrentCaptainDetails(theCap,it).show(parentFragmentManager,null)
+                            theViewModel.myCaptainDetails.value=null
+
+                        }
+                    })
+                }
+
             }
         })
 
@@ -323,6 +476,40 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     override fun onResume() {
         super.onResume()
         mapView2?.onResume()
+        showArounCaptainsAndStoreem()
+        theViewModel.theLiveDataOfCapsLocations.observe(viewLifecycleOwner, { theLOcationList ->
+            if (theLOcationList.size != 0) {
+                theMap.clear()
+
+                for (i in theLOcationList) {
+                    theMap.addMarker(i)
+                }
+            } else {
+                theMap.clear()
+                theViewModel.getToCustomerToReach()
+            }
+
+        })
+        viewLifecycleOwner.let {
+            theViewModel.theCstLocationWithinRide.observe(it, { location ->
+                location?.let {
+                    if (!theViewModel.theCstIDrawn)
+                    {
+                        theMarke2?.remove()
+                        theMarke2= theMap.addMarker(MarkerOptions()
+                                .position(LatLng(location.latitude, location.longitude))
+                                .title("Captain")
+                            //    .rotation(p0.lastLocation.bearing)
+                                .icon(BitmapDescriptorFactory.fromResource(R.drawable.sycee)))
+                       // theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 18f))
+                    //    theProgress2.dismiss()
+                        theViewModel.theCstIDrawn=true
+                    }
+
+
+                }
+            })
+        }
     }
 
     override fun onStart() {
@@ -359,28 +546,22 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     @SuppressLint("MissingPermission")
     fun findCloseCapsForCst()
     {
-
-
         theProgress.setMessage("Searching..")
         theProgress.setCancelable(false)
         theProgress.setCanceledOnTouchOutside(false)
         theProgress.show()
-
-
         fusedLocation.lastLocation.addOnSuccessListener {
-
             val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
            val adreess:List<Address> = theGeoCoder.getFromLocation(it.latitude,it.longitude,1)
-           // Toast.makeText(requireContext(), "${adreess}", Toast.LENGTH_SHORT).show()
-            theViewModel.makeTheLocationToSatrtSearchingForCaps(adreess[0]?.locality.toString(), GeoLocation(it.latitude,it.longitude))
-           val theGeoLocationRef = GeoFire( FirebaseDatabase.getInstance().reference.child("Online Captains").child(adreess[0]?.locality.toString()))
+            theViewModel.makeTheLocationToSatrtSearchingForCaps(adreess[0].locality.toString(), GeoLocation(it.latitude,it.longitude))
+           val theGeoLocationRef = GeoFire( FirebaseDatabase.getInstance().reference.child("Online Captains").child(adreess[0].locality.toString()))
             lifecycleScope.launch(Dispatchers.IO) {
-                findCaptainsWithRecursion(theGeoLocationRef,theViewModel.geoRefrence!!,requireContext(),theProgress)
+                findCaptainsWithRecursion(theGeoLocationRef,theViewModel.geoRefrence!!,requireContext())
             }
         }
 
     }
-    suspend fun findCaptainsWithRecursion(locationref:GeoFire, geoLocation: GeoLocation, context: Context, dialog: AlertDialog)
+    suspend fun findCaptainsWithRecursion(locationref:GeoFire, geoLocation: GeoLocation, context: Context )
     {
 
         val theGeoQuery = locationref.queryAtLocation(geoLocation, theViewModel.theDistance)
@@ -389,6 +570,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             override fun onKeyEntered(key: String?, location: GeoLocation?) {
                 if (!theViewModel.isFound )
                 {
+                    theViewModel. isFound = true
                     theViewModel.theDriver = key!!
                     lifecycleScope.launch(Dispatchers.IO)  {
                         theViewModel.theDriver?.let {
@@ -398,37 +580,41 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                         }
                     }
                     theViewModel.createRefrenceForMyPendingStatus()
-                    lifecycleScope.launch(Dispatchers.Main) {
-                        dialog.setMessage("Cap Found")
-                        withContext(Dispatchers.IO)
+                        lifecycleScope.launch(Dispatchers.IO)
                         {
                             delay(10000)
                             theViewModel.checkIfCapAccepted()
                             delay(5000)
-                            withContext(Dispatchers.Main){
+                            lifecycleScope.launch(Dispatchers.Main){
                                 theViewModel.theCaptainAnswer.observe(viewLifecycleOwner,{
                                     it?.let {
                                         if (it=="yes") {
                                             theViewModel.updateAfterCaptainAcceptance()
+                                            theViewModel.rideID=theViewModel.theDriver+FirebaseAuth.getInstance().currentUser!!.uid
+                                            Utility.thePendingRideId=theViewModel.theDriver+FirebaseAuth.getInstance().currentUser!!.uid
                                             val theWaitingIntent= Intent(context, CalculatingWaitingTimeService::class.java).apply {
-                                                action=Utility.startWaitingService
+                                                action= Utility.startWaitingService
+
                                             }
                                             ContextCompat.startForegroundService(context, theWaitingIntent)
                                             theGeoQuery.removeAllListeners()
-                                            dialog.dismiss()
+                                            theProgress.dismiss()
                                         }
                                         else {
                                             theViewModel.updateAfterCaptainRejection()
                                             lifecycleScope.launch(Dispatchers.IO) {
-                                                findCaptainsWithRecursion(locationref,theViewModel.geoRefrence!!,requireContext(),dialog)                                        }
+                                                findCaptainsWithRecursion(locationref,theViewModel.geoRefrence!!,requireContext())
+                                            }
                                         }
                                     }
                                 })
                             }
                         }
-                    }
 
-                    theViewModel. isFound = true
+
+
+                    theGeoQuery.removeAllListeners()
+
                 }
 
                 return
@@ -446,16 +632,17 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                     theGeoQuery.removeAllListeners()
                     theViewModel.theDistance++
                     CoroutineScope(Dispatchers.IO).launch {
-                        findCaptainsWithRecursion(locationref,geoLocation,context,dialog)
+                        findCaptainsWithRecursion(locationref,geoLocation,context)
                     }
                 }
                 else if (theViewModel.theDistance> theViewModel.theRadiouslLimit)
                 {
-                    dialog.dismiss()
+                    theProgress.dismiss()
                     theViewModel.couldntFindCaptainsNearBy()
                     Toast.makeText(context, "we couldn't Find Captains here", Toast.LENGTH_SHORT).show()
                     theGeoQuery.removeAllListeners()
                     theViewModel.resetBeforeSearching()
+                    theViewModel.theCaptainAnswer.value=null
                     return
                 }
 
@@ -468,6 +655,15 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     }
 
+    @SuppressLint("MissingPermission")
+    fun refreshMyLocation() {
+        fusedLocation.lastLocation.addOnSuccessListener {
+            val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
+            val adreess = theGeoCoder.getFromLocation(it.latitude, it.longitude, 1)
+            val theCity = adreess[0].locality.toString()
+           theViewModel.updateMyLocation(theCity,it)
+
+        }
 
 
 
@@ -475,52 +671,43 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
     }
 
-//trash
-/*   val theStatus =   fireBaseDataBase.child("CustomersPending").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").child(theViewModel.theDriver!!)
-                   theStatus .addValueEventListener(object : ValueEventListener {
-                       override fun onDataChange(snapshot: DataSnapshot) {
-                           if (snapshot.exists()) {
-                           *//*    var theValue = snapshot.value.toString()
-                                        if (theValue == "yes") {
-                                            CoroutineScope(Dispatchers.Main).launch {
-                                                withContext(Dispatchers.IO){
-                                                    fireBaseDataBase.child("ConfirmedForCst").child(FirebaseAuth.getInstance().currentUser!!.uid).setValue(theViewModel.theDriver!!).addOnSuccessListener {
-                                                        fireBaseDataBase.child("CustomersPending").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Cap is Coming").removeValue()
-                                                    }
-                                                    fireBaseDataBase.child("Customers").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("Waiting")
-                                                    createThePendingRideDetails(theDriver!!,FirebaseAuth.getInstance().currentUser!!.uid).addOnSuccessListener {
-                                                        val theWaitingIntent= Intent(context, CalculatingWaitingTimeService::class.java).apply {
-                                                            action=Utility.startWaitingService
-                                                        }
-                                                        ContextCompat.startForegroundService(context, theWaitingIntent)
-                                                        theGeoQuery.removeAllListeners()
 
-                                                    }
-
-                                                }
+    @SuppressLint("MissingPermission")
+    fun makeTheCaptainOnline(){
+        fusedLocation.lastLocation.addOnSuccessListener {
+            it?.let {
+                val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
+                val adreess = theGeoCoder.getFromLocation(it.latitude, it.longitude, 1)
+                val theCity = adreess[0]?.locality
+                if (theCity != null) {
+                    theViewModel.updateMyLocationAndStatusAsCaptain(theCity,it)
+                }
+            }
 
 
-                                            }
-                                            theStatus.removeEventListener(this)
-                                            dialog.dismiss()*//*
-                                        } else
-                                        {
 
-                                            CoroutineScope(Dispatchers.IO).launch {
-                                                makeTheCapStatusOff(theDriver!!)
-                                                fireBaseDataBase.child("Pending For Caps").child(theViewModel.theDriver!!).removeValue()
-                                                restBeforeSearching()
-                                                findCaptainswithRecursion(locationref, geoLocation, context, dialog)
+        }
 
-                                                dialog.dismiss()
-                                            }
-                                            theStatus.removeEventListener(this)
-                                        }
-                                    }
-                                }
 
-                                override fun onCancelled(error: DatabaseError) {
-                                }
+    }
+    @SuppressLint("MissingPermission", "VisibleForTests")
+    fun showArounCaptainsAndStoreem()
+    {
 
-                            })
-*/
+lifecycleScope.launch {
+    fusedLocation.lastLocation.addOnSuccessListener { thisLocation ->
+        if (thisLocation!= null){
+            val theGeoCoder = Geocoder(context, Locale.getDefault())
+            val adreess: MutableList<Address> ?= theGeoCoder.getFromLocation(thisLocation.latitude, thisLocation.longitude, 1)
+            if (adreess?.get(0)?.locality!= null) {
+                theViewModel.makeTheAroundCaptains(adreess[0].locality)
+            }
+        }
+    }
+}
+
+
+    }
+
+    }
+
