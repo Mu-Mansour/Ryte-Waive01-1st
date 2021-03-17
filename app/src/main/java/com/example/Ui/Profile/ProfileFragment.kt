@@ -43,7 +43,9 @@ private val theUserType:ProfileFragmentArgs by navArgs()
             FirebaseAuth.getInstance().signOut()
             findNavController().navigate(ProfileFragmentDirections.actionProfileFragment2ToSplash())
         }
+theViewModel.rides.observe(viewLifecycleOwner,{
 
+})
 
 
     }

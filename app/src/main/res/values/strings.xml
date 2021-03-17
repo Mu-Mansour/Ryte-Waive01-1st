@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Ryte</string>
-    <string name="maps_key">AIzaSyAXOQZJRxLuKgmy4MqwJl9Dv_nfS-JHThI</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="maps_key">""Your KeyI</string>
+    <string name="cash">cash</string>
+    <string name="credit_cash">credit Then Cash</string>
 
 </resources>

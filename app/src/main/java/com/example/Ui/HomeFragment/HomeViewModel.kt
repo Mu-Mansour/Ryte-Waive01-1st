@@ -11,6 +11,7 @@ import com.example.ryte.Logic.PendingRideModule
 import com.example.ryte.Network.NotificationData
 import com.example.ryte.Network.PushNotification
 import com.example.ryte.Network.RetrofitInstance
+import com.example.ryte.Others.Utility
 import com.example.ryte.R
 import com.firebase.geofire.GeoFire
 import com.firebase.geofire.GeoLocation
@@ -63,11 +64,19 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
     //for cap
     val theCapStatus: MutableLiveData<String> = MutableLiveData()
+    val muCurrentRideIdForCaptain: MutableLiveData<String> = MutableLiveData()
     val theCapNewRide:MutableLiveData<Boolean> = MutableLiveData()
+    val updatedEverything:MutableLiveData<Boolean> = MutableLiveData()
+    val theCapRideIsCancelAbale:MutableLiveData<Boolean> = MutableLiveData()
+    val isCstWithMe:MutableLiveData<Boolean> = MutableLiveData()
     var cstID:String?= null
     var theCstIDrawn=false
     var theCstLocationWithinRide:MutableLiveData<Location> = MutableLiveData()
     val theCstLatLng:MutableLiveData<LatLng> = MutableLiveData()
+    var waitingServiceStarted=false
+    var distanceServiceStarted=false
+
+
 
 
 
@@ -109,6 +118,7 @@ class HomeViewModel @Inject constructor() :ViewModel() {
                     })
         }
     }
+
     fun getMyCurrentCaptain() {
         viewModelScope.launch(Dispatchers.IO) {
             FirebaseDatabase.getInstance().reference.child("ConfirmedForCst").child(FirebaseAuth.getInstance().currentUser!!.uid)
@@ -345,7 +355,10 @@ class HomeViewModel @Inject constructor() :ViewModel() {
                     .child("Status").addValueEventListener(object : ValueEventListener {
                         override fun onDataChange(snapshot: DataSnapshot) {
                             if (snapshot.exists()) {
-                                theCapStatus.value = snapshot.value.toString()
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    theCapStatus.value = snapshot.value.toString()
+                                }
+
                             }
                         }
 
@@ -357,7 +370,7 @@ class HomeViewModel @Inject constructor() :ViewModel() {
 
         fun makeTheCapStatusOff(capId: String) {
             FirebaseDatabase.getInstance().reference.child("Captains").child(capId).child("Status").setValue("OFF").addOnSuccessListener {
-                FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(capId).removeValue()
+           //     FirebaseDatabase.getInstance().reference.child("Cap Busy With Rides").child(capId).removeValue()
 
             }
         }
@@ -545,8 +558,116 @@ class HomeViewModel @Inject constructor() :ViewModel() {
         }
 )
     }
+    fun listenToMyCancel(){
+        FirebaseDatabase.getInstance().reference.child("CancelableRides").child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(object :ValueEventListener{
+            override fun onDataChange(snapshot: DataSnapshot) {
+                if (snapshot.exists())
+                {
+                    viewModelScope.launch(Dispatchers.Main) {
+                        theCapRideIsCancelAbale.value=true
+                    }
+
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+            }
+
+        })
+    }
+    fun getMyCurrentRideIdForCap()
+    {
+        viewModelScope.launch {
+            FirebaseDatabase.getInstance().reference
+                    .child("Cap Busy With Rides")
+                    .child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(object :ValueEventListener{
+                        override fun onDataChange(snapshot: DataSnapshot) {
+                            if (snapshot.exists())
+                            {
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    muCurrentRideIdForCaptain.value=FirebaseAuth.getInstance().currentUser!!.uid+snapshot.value.toString()
+                                    Utility.thePendingRideId=(FirebaseAuth.getInstance().currentUser!!.uid+snapshot.value.toString())
+                                }
+                                FirebaseDatabase.getInstance().reference
+                                        .child("Cap Busy With Rides")
+                                        .child(FirebaseAuth.getInstance().currentUser!!.uid).removeEventListener(this)
+                            }
+                        }
+
+                        override fun onCancelled(error: DatabaseError) {
+                        }
+
+                    })
+        }
+    }
+
+    fun checktheCstIsWithMeToStartTheRide(rideid:String)
+    {
+        FirebaseDatabase.getInstance().reference.child("Rides")
+                .child("Pending").child(rideid).child("Cstiswithme")
+                .addValueEventListener(object :ValueEventListener{
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        if (snapshot.exists())
+                        {
+                        var isHe=snapshot.value.toString().toBoolean()
+                               isCstWithMe.value=isHe
+
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                    }
+
+                })
+
+    }
+
+fun makeMyStatusRiding()=viewModelScope.launch {
+    FirebaseDatabase.getInstance().reference.child("Captains").child(FirebaseAuth.getInstance().currentUser!!.uid).child("Status").setValue("Riding")
+    }
+
+    fun updateTheDistancAndWaitingTimeTotheRide(rideid: String) {
+
+            if (Utility.distance > 0 || Utility.waitingTime > 0) {
+
+                val distancePrice = Utility.distance.toString().toDouble().toString()
+
+                val distanceinKilos = ((Utility.distance) / 1000).toString()
+
+                val waitingPrice =((Utility.waitingTime.toString().toDouble() / 60) * 7).toString()
+
+                val vat = (.14 * (distancePrice.toDouble() + waitingPrice.toDouble())).toString()
+
+                val price =( (vat.toDouble() + waitingPrice.toDouble() + distancePrice.toDouble())).toString()
 
 
+
+                FirebaseDatabase.getInstance().reference.child("Rides").child("Pending").child(rideid).child("vat").setValue(vat).addOnSuccessListener { _ ->
+                    FirebaseDatabase.getInstance().reference.child("Rides").child("Pending").child(rideid).child("Distance").setValue(distanceinKilos).addOnSuccessListener { _ ->
+                        FirebaseDatabase.getInstance().reference.child("Rides").child("Pending").child(rideid).child("WaitingTime").setValue((Utility.waitingTime.toString())).addOnSuccessListener { _ ->
+                            FirebaseDatabase.getInstance().reference.child("Rides").child("Pending").child(rideid).child("Price").setValue(
+                                price
+                            ).addOnSuccessListener {
+                                updatedEverything.value=true
+                                viewModelScope.launch(Dispatchers.Main) {
+
+                                }
+
+                            }
+                        }
+                    }
+                }
+        }
+        else
+            {
+                updatedEverything.value=false
+                viewModelScope.launch(Dispatchers.Main) {
+
+
+                }
+            }
+
+    }
 
 }
 

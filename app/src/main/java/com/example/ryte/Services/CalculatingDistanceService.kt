@@ -8,7 +8,7 @@ import android.content.Intent
 import android.location.Location
 import android.os.Build
 import android.os.IBinder
-import android.os.Looper
+import android.os.Looper.myLooper
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.ryte.Others.Utility
@@ -104,6 +104,12 @@ class CalculatingDistanceService: Service(){
                     startItAsForGround()
 
                 }
+                else ->{
+                    //later functions
+                    stopSelf()
+                    stopForeground(true)
+
+                }
 
             }
         }
@@ -113,11 +119,14 @@ class CalculatingDistanceService: Service(){
     override fun onDestroy() {
         locationUpdated.removeLocationUpdates(theLocationCallBack)
         super.onDestroy()
+
+
     }
 
     override fun onBind(p0: Intent?): IBinder? {
         return null    }
 
+    @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
     @SuppressLint("MissingPermission")
     private fun startItAsForGround()
     {
@@ -134,7 +143,7 @@ class CalculatingDistanceService: Service(){
             override fun onCancelled(error: DatabaseError) {
             }
         })
-        locationUpdated.requestLocationUpdates(locationRequest,theLocationCallBack, Looper.myLooper())
+        locationUpdated.requestLocationUpdates(locationRequest,theLocationCallBack, myLooper())
 
         val notificationManager = getSystemService(android.content.Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)

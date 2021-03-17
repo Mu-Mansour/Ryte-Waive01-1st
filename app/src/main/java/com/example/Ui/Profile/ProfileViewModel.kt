@@ -35,7 +35,30 @@ class ProfileViewModel @Inject constructor() : ViewModel() {
     val cstDetails:MutableLiveData<Customer> = MutableLiveData()
 
     fun getTheTotalRides(){
-        //FirebaseDatabase.getInstance().reference
+        val theRides:MutableList<PendingRideModule> = mutableListOf()
+     FirebaseDatabase.getInstance().reference.child("MyRides").
+     child(FirebaseAuth.getInstance().currentUser!!.uid).addValueEventListener(object :ValueEventListener{
+         override fun onDataChange(snapshot: DataSnapshot) {
+             if (snapshot.exists())
+             {
+                 theRides.clear()
+                 for (i in snapshot.children)
+                 {
+                     var theride=i.getValue(PendingRideModule::class.java)
+                     theride?.let {
+                         theRides.add(theride)
+                     }
+
+                 }
+                 rides.value=theRides
+
+             }
+         }
+
+         override fun onCancelled(error: DatabaseError) {
+         }
+
+     })
     }
 
 

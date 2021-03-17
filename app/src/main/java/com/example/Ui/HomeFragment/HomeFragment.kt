@@ -47,10 +47,7 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.android.synthetic.main.fragment_home.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.util.*
 
 @AndroidEntryPoint
@@ -75,8 +72,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
        fastestInterval= 3000
        interval= 3000
    }
-    private var theMarke: Marker? = null
-    private var theMarke2: Marker? = null
+    private var theMarkOfCurrentUser: Marker? = null
+    private var theMarkeOfCstLocation: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -135,8 +132,9 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                     when (it) {
                         "Ryte" -> {
                             cancelTheRide.isVisible = false
+                     //       doJobBtn.isVisible = true
                             doJobBtn.apply {
-                                //  backgroundTintList = resources.getColorStateList(R.color.white)
+                                visibility = View.VISIBLE
                                 setImageResource(R.drawable.ic_baseline_maps_ugc_24)
                                 setOnClickListener {
                                     lifecycleScope.launch {
@@ -150,7 +148,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
                             doJobBtn.apply {
                                 visibility = View.VISIBLE
-                                //          backgroundTintList = resources.getColorStateList(R.color.white)
                                 setImageResource(R.drawable.ic_baseline_person_24)
                                 setOnClickListener {
                                     lifecycleScope.launch {
@@ -165,7 +162,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                     theViewModel.getMyCurrentRideId()
                                     theViewModel.muCurrentRideId.observe(viewLifecycleOwner, { id1 ->
                                         id1?.let {
-                                          //  Toast.makeText(requireContext(), id1, Toast.LENGTH_SHORT).show()
                                             if (!theViewModel.cancelIsShown)
                                             {
                                                 cancelTheRide(parentFragmentManager)
@@ -182,6 +178,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
 
                         }
                         "Riding" -> {
+
                             cancelTheRide.isVisible = false
                             doJobBtn.apply {
                                 visibility = View.VISIBLE
@@ -189,7 +186,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                 setOnClickListener {
                                     lifecycleScope.launch {
                                         theViewModel.makeMeWithCaptain()
-                                        val theIntentForTracking = Intent(context, CalculatingDistanceService::class.java).apply {
+                                        val theIntentForTracking = Intent(requireContext(), CalculatingDistanceService::class.java).apply {
                                             action = Utility.startRide
                                         }
                                         val thewaitingIntent = Intent(requireContext(), CalculatingWaitingTimeService::class.java)
@@ -239,50 +236,31 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         else
         {
 
-            theViewModel.theCapNewRide.observe(viewLifecycleOwner, {
-                it?.let {
-
-                    if (it) {
-                        theViewModel.theCapNewRide.value=false
-                        val theDialog =  AlertDialog.Builder(requireContext())
-                        theDialog .setMessage("You  Have a New Ride")
-                                .setTitle("New Ride ").setPositiveButton("Accept") { _, _ ->
-                                    lifecycleScope.launch {
-
-                                    }
-
-                                }.setNegativeButton("Decline") { _, _ ->
-
-
-                                }.show()
-
-
-                    } else {
-                        //for the dialouge
-
-                    }
-                }
-            })
-            theViewModel.theCapStatus.observe(viewLifecycleOwner,{cap->
+            theViewModel.theCapStatus.observe(viewLifecycleOwner, { cap ->
                 cap?.let {
-                    when(it)
-                    {
+                    when (it) {
                         "Busy" -> {
+
                             doJobBtn.setImageResource(R.drawable.ic_baseline_location_on_24)
                             theViewModel.getToCustomerToReach()
                             theViewModel.theCstLocationWithinRide.observe(viewLifecycleOwner, { location ->
                                 location?.let {
                                     val theMarker = MarkerOptions()
                                             .position(LatLng(location.latitude, location.longitude))
-                                            .title("Captain")
+                                            .title("Rider")
                                             .icon(BitmapDescriptorFactory.fromResource(R.drawable.sycee))
                                     theMap.addMarker(theMarker)
                                     fusedLocation.lastLocation.addOnSuccessListener { theCurrentLocation ->
 
                                         doJobBtn.setOnClickListener {
-                                            if (theCurrentLocation.distanceTo(location) <= 50.0) {
+                                            if (theCurrentLocation.distanceTo(location) <= 100.0) {
                                                 Toast.makeText(requireContext(), "You Reached Your Destination", Toast.LENGTH_SHORT).show()
                                                 theViewModel.updateMyStatusAfterArriving()
+                                                val theWaitingIntent = Intent(requireContext(), CalculatingWaitingTimeService::class.java).apply {
+                                                    action = Utility.startWaitingService
+                                                }
+                                                ContextCompat.startForegroundService(requireContext(), theWaitingIntent)
+                                                theViewModel.waitingServiceStarted = true
 
                                             } else {
                                                 Toast.makeText(requireContext(), "Please Reach Your Destination ", Toast.LENGTH_SHORT).show()
@@ -298,13 +276,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                 setImageResource(R.drawable.ic_baseline_location_on_24)
                                 visibility = View.VISIBLE
                             }
+
                         }
-                        "ON"->{
-                            doJobBtn.visibility=View.GONE
+                        "ON" -> {
+                            doJobBtn.visibility = View.GONE
                             statusBTN.apply {
-                                visibility=View.VISIBLE
-                               background=resources.getDrawable(R.drawable.radious4)
-                                text="ON"
+                                visibility = View.VISIBLE
+                                background = resources.getDrawable(R.drawable.radious4)
+                                text = "ON"
                                 setOnClickListener {
                                     fusedLocation.lastLocation.addOnSuccessListener {
                                         val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
@@ -316,44 +295,162 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                                 }
                             }
                             RefreshMyLocation.apply {
-                                visibility=View.VISIBLE
+                                visibility = View.VISIBLE
                                 setOnClickListener {
                                     refreshMyLocation()
                                 }
                             }
 
                         }
-                        "Arrived"->{
+                        "Arrived" -> {
 
+                            doJobBtn.setImageResource(R.drawable.ic_baseline_timer_24)
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                theViewModel.getMyCurrentRideIdForCap()
+                                theViewModel.listenToMyCancel()
+                            }
+                            theViewModel.theCapRideIsCancelAbale.observe(viewLifecycleOwner, { cancelable ->
+                                cancelable?.let {
+                                    if (cancelable) {
+                                        cancelTheRide.apply {
+                                            isVisible = true
+                                            setOnClickListener {
+                                                cancelTheRide(parentFragmentManager)
 
-                        }
-                        "Riding"->{
-
-                        }
-                        "OFF"->{
-                            theViewModel.makeTheCapStatusOff(FirebaseAuth.getInstance().currentUser!!.uid)
-                            doJobBtn.isVisible=false
-                            RefreshMyLocation.visibility=View.GONE
-                            statusBTN.apply {
-                            visibility=View.VISIBLE
-                                background=resources.getDrawable(R.drawable.radious5)
-                            text="OFF"
-                            setOnClickListener {
-                                fusedLocation.lastLocation.addOnSuccessListener {
-                                    val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
-                                    val adreess = theGeoCoder.getFromLocation(it.latitude, it.longitude, 1)
-                                    theViewModel.theCity = adreess[0].locality.toString()
-                                    lifecycleScope.launch(Dispatchers.IO) {
-                                        makeTheCaptainOnline()
+                                            }
+                                        }
                                     }
+                                }
+                            })
+                            theViewModel.muCurrentRideIdForCaptain.observe(viewLifecycleOwner, { theid ->
+                                theid?.let {
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        theViewModel.checktheCstIsWithMeToStartTheRide(theid)
+                                    }
+                                }
+                            })
+                            theViewModel.isCstWithMe.observe(viewLifecycleOwner, { yesHeIs ->
+                                yesHeIs?.let { theBoolean ->
+
+                                    if (theBoolean) {
+                                        doJobBtn.setOnClickListener {
+                                            if (theViewModel.waitingServiceStarted) {
+                                                val thewaitingIntent = Intent(requireContext(), CalculatingWaitingTimeService::class.java)
+                                                requireActivity().stopService(thewaitingIntent)
+                                            }
+                                            val theIntent = Intent(requireContext(), CalculatingDistanceService::class.java).apply {
+                                                action = Utility.startRide
+                                            }
+                                            ContextCompat.startForegroundService(requireContext(), theIntent)
+                                            theViewModel.distanceServiceStarted = true
+                                            theViewModel.makeMyStatusRiding()
+                                            doJobBtn.isVisible = false
+                                        }
+
+                                    }
+
 
                                 }
 
+                            })
+
+
+                        }
+                        "Riding" -> {
+                            theViewModel.muCurrentRideIdForCaptain.value = null
+                            doJobBtn.isVisible = false
+                            theViewModel.getMyCurrentRideIdForCap()
+                            theViewModel.muCurrentRideIdForCaptain.observe(viewLifecycleOwner, { therideIdForRiding ->
+                                therideIdForRiding?.let {
+                                    doJobBtn.isVisible = true
+                                    doJobBtn.apply {
+                                        setOnClickListener {
+                                            AlertDialog.Builder(requireContext()).apply {
+                                                setMessage("You Are about Completing Your Ride \nPlease Confirm To Navigate To Billing ")
+                                                setTitle("Completion Dialogue  ")
+                                                setPositiveButton(" Confirm ") { _, _ ->
+                                                    val toStopAllocating = Intent(requireContext(), CalculatingDistanceService::class.java)
+                                                    requireActivity().stopService(toStopAllocating)
+                                                    lifecycleScope.launch(Dispatchers.Main) {
+                                                        withContext(Dispatchers.Main) {
+                                                            theProgress.setMessage("updating Your Ride Details")
+                                                            theProgress.show()
+
+                                                        }
+                                                        theViewModel.updateTheDistancAndWaitingTimeTotheRide(Utility.thePendingRideId!!)
+
+                                                    }
+
+                                                }
+                                                setNegativeButton("Cancel ") { _, _ ->
+                                                    Toast.makeText(requireContext(), "Cancelled...Ryte Still tracking Your Location", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }.show()
+                                        }
+                                    //    isVisible = true
+                                        setImageResource(R.drawable.ic_baseline_add_task_24)
+                                    }
+
+
+                                }
+
+                            })
+                            theViewModel.updatedEverything.observe(viewLifecycleOwner, { updated ->
+                                updated?.let {
+                                    if (updated) {
+                                        theProgress.dismiss()
+                                        findNavController().navigate(HomeFragmentDirections.actionHomeFragmentToBilingFragment(Utility.thePendingRideId!!))
+                                    } else {
+                                        theProgress.dismiss()
+                                        AlertDialog.Builder(requireContext()).apply {
+                                            setMessage("you had a problem with your Ride ..please contact Administration ")
+                                            setTitle("error  ")
+                                            setPositiveButton(" Go To Billing ") { _, _ ->
+                                                findNavController().navigate(HomeFragmentDirections.actionHomeFragmentToBilingFragment(Utility.thePendingRideId!!))
+
+                                            }
+                                            setNegativeButton("Cancel ") { _, _ ->
+                                                Toast.makeText(requireContext(), "Canceled", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }.show()
+                                    }
+                                }
+                            })
+
+                        }
+
+                        "OFF" -> {
+                            if (theViewModel.waitingServiceStarted) {
+                                requireActivity().stopService((Intent(requireContext(), CalculatingWaitingTimeService::class.java)))
+                            }
+                            theViewModel.makeTheCapStatusOff(FirebaseAuth.getInstance().currentUser!!.uid)
+                            doJobBtn.isVisible = false
+                            RefreshMyLocation.visibility = View.GONE
+                            statusBTN.apply {
+                                visibility = View.VISIBLE
+                                background = resources.getDrawable(R.drawable.radious5)
+                                text = "OFF"
+                                setOnClickListener {
+                                    fusedLocation.lastLocation.addOnSuccessListener { thelocation ->
+                                        val theGeoCoder = Geocoder(requireContext(), Locale.getDefault())
+                                        val adreess = theGeoCoder.getFromLocation(thelocation.latitude, thelocation.longitude, 1)
+                                        adreess[0]?.locality?.toString()?.let {
+                                            lifecycleScope.launch(Dispatchers.IO) {
+                                                makeTheCaptainOnline()
+
+                                            }
+                                        }  ?:    Toast.makeText(requireContext(), "UnKnown Location", Toast.LENGTH_SHORT).show()
+
+
+                                    }
+
+
+                                }
 
                             }
+                        }
 
-                        }
-                        }
+
                     }
                 }
             })
@@ -369,13 +466,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 if (arguments.UserType != "Cst") {
                     isLocationEnabled(requireContext())
                     p0?.let {
-                        theMarke?.remove()
-                        theMarke = theMap.addMarker(MarkerOptions()
+                        theMarkOfCurrentUser?.remove()
+                        theMarkOfCurrentUser = theMap.addMarker(MarkerOptions()
                                 .position(LatLng(p0!!.lastLocation.latitude, p0.lastLocation.longitude))
                                 .title("Captain")
                                 .rotation(p0.lastLocation.bearing)
                                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.carforcaptainmoving)))
-                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 18f))
+                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 14f))
                         theProgress2.dismiss()
 
 
@@ -384,12 +481,12 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 } else {
                     isLocationEnabled(requireContext())
                     p0?.let {
-                        theMarke?.remove()
-                        theMarke = theMap.addMarker(MarkerOptions()
+                        theMarkOfCurrentUser?.remove()
+                        theMarkOfCurrentUser = theMap.addMarker(MarkerOptions()
                                 .position(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude))
                                 .title("Customer")
                                 .icon(BitmapDescriptorFactory.fromResource(R.drawable.customer)))
-                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 18f))
+                        theMap.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(p0.lastLocation.latitude, p0.lastLocation.longitude), 14f))
                         theProgress2.dismiss()
 
 
@@ -449,7 +546,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
             it?.let {
                 lifecycleScope.launch {
                     theViewModel.getMyCaptainDetails(it)
-                    //theViewModel.muCurrentRideId.value=it+FirebaseAuth.getInstance().currentUser!!.uid
                     theViewModel.myCaptainDetails.observe(viewLifecycleOwner,{cap->
                         cap?.let {theCap->
                             CurrentCaptainDetails(theCap,it).show(parentFragmentManager,null)
@@ -495,8 +591,8 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 location?.let {
                     if (!theViewModel.theCstIDrawn)
                     {
-                        theMarke2?.remove()
-                        theMarke2= theMap.addMarker(MarkerOptions()
+                        theMarkeOfCstLocation?.remove()
+                        theMarkeOfCstLocation= theMap.addMarker(MarkerOptions()
                                 .position(LatLng(location.latitude, location.longitude))
                                 .title("Captain")
                             //    .rotation(p0.lastLocation.bearing)

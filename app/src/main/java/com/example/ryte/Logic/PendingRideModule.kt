@@ -12,7 +12,8 @@ data class PendingRideModule(
     var WaitingTime:String?,
     var Price:String?,
     var vat:String?,
+    var Status:String?,
 ) {
 
-    constructor():this(null,null,null,null,null,null,null,null,null,null,null)
+    constructor():this(null,null,null,null,null,null,null,null,null,null,null,null)
 }

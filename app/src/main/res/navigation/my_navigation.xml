@@ -21,6 +21,12 @@
             app:launchSingleTop="true"
             app:popUpTo="@id/homeFragment"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_homeFragment_to_bilingFragment"
+            app:destination="@id/bilingFragment"
+            app:launchSingleTop="true"
+            app:popUpTo="@id/homeFragment"
+            app:popUpToInclusive="true" />
     </fragment>
     <fragment
         android:id="@+id/splash"
@@ -65,11 +71,6 @@
             app:popUpToInclusive="true" />
     </fragment>
     <fragment
-        android:id="@+id/captainBilling"
-        android:name="com.example.Ui.CaptainBill.CaptainBilling"
-        android:label="captain_billing_fragment"
-        tools:layout="@layout/captain_billing_fragment" />
-    <fragment
         android:id="@+id/loginForAllHome"
         android:name="com.example.Ui.Login.LoginForAllHome"
         android:label="login_for_all_home_fragment"
@@ -106,6 +107,21 @@
             app:destination="@id/splash"
             app:launchSingleTop="true"
             app:popUpTo="@id/profileFragment2"
+            app:popUpToInclusive="true" />
+    </fragment>
+    <fragment
+        android:id="@+id/bilingFragment"
+        android:name="com.example.Ui.CaptainBilling.BilingFragment"
+        android:label="biling_fragment"
+        tools:layout="@layout/biling_fragment" >
+        <argument
+            android:name="RideId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_bilingFragment_to_profileFragment2"
+            app:destination="@id/profileFragment2"
+            app:launchSingleTop="true"
+            app:popUpTo="@id/bilingFragment"
             app:popUpToInclusive="true" />
     </fragment>
 </navigation>
