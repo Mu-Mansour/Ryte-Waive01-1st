@@ -1,12 +1,12 @@
-# Ryte
+## Ryte
 
 An android application provides a based Taxi booking Services like Uber. It's related to google maps *for only training purpose*. 
 
-## Technologies:
+### Technologies:
 - Kotlin, retrofit, Google Maps, REST APIs, Firebase(Auth, FCM,RealTime DataBase,Storage),
 dependency injection(Hilt), MVVM pattern, Navigation Component.
 
-## Features:
+### Features:
 - provides a Login for Admins/Captins/Customers.
 	
 * **Captin**: 
