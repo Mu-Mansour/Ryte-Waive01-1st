@@ -1,6 +1,6 @@
 # Ryte
 
-An android application provides a based Taxi booking Services like Uber.its related to google maps "for only training purpose". 
+An android application provides a based Taxi booking Services like Uber. It's related to google maps *for only training purpose*. 
 
 ## Technologies:
 - Kotlin, retrofit, Google Maps, REST APIs, Firebase(Auth, FCM,RealTime DataBase,Storage),
