@@ -16,11 +16,16 @@ dependency injection(Hilt), MVVM pattern, Navigation Component.
 	- Once a captain click Accept,he will see the rider's postition on a map to pick him up.
 
 	- You have 5 diffrent states each have its own functionality:
-		 -Busy with ride.
-		 -online and can recieve rides. 
-		 -offline. 
-		 -waiting for the customer.
-		 -riding with customer. 
+	
+		 - Busy with ride.
+		 
+		 - online and can recieve rides. 
+		 
+		 - offline. 
+		 
+		 - waiting for the customer.
+		 
+		 - riding with customer. 
 		
 		
 * **Customer**:
